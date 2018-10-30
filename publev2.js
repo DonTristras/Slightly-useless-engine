@@ -56,7 +56,7 @@ function publes2d(Configuration) {
     this.isMouseDown = false;
     this.debugMode = true;
     //current
-    this.selectedMaterial = this.materials.wood;
+    this.selectedMaterial = this.materials.metal;
     this.selectedJoinStyle = this.lineJoinStyle.round;
 
     // base items definition
@@ -77,6 +77,8 @@ function publes2d(Configuration) {
         this.isRigidBody;
         this.isVisible;
         this.isCollidable;
+        this.isColling;
+        this.collisionPoint = { x: 0, y: 0 };
         this.material;
         this.joinStyle;
         this.farestPolyCordSize;
@@ -130,11 +132,13 @@ function publes2d(Configuration) {
         obj.isRigidBody = isRigid;
         obj.isVisible = isVisible;
         obj.isCollidable = true;
+        obj.isColliding = false;
         obj.material = _this.selectedMaterial;
         obj.joinStyle = _this.selectedJoinStyle;
         obj.centerPoint = SetCenterPoint(obj);
         obj.gravityPoint = obj.centerPoint;
-        obj.rMagnitude = GetRandom(0, 0.2); //temporary
+        obj.collisionPoint = obj.centerPoint;
+        obj.rMagnitude = 0; //GetRandom(0, 0.2); //temporary
         obj.farestPolyCord = GetFarestPolyCord(cordsList, obj.centerPoint);
         _this.objectsArray.push(obj);
         LasObjectId++;
@@ -243,9 +247,17 @@ function publes2d(Configuration) {
         TempInfoArray = [];
         TempInfoArray = JSON.parse(JSON.stringify(_this.objectsArray)); //deep clone object. Is it perfoming? can it break because of string convert?
         for (i = 0; i <= _this.objectsArray.length - 1; i++) {
-            TempInfoArray[i].gravityPoint = TempInfoArray[i].centerPoint;
-
+            
             if (!TempInfoArray[i].isRigidBody) {
+                //move gravity force slowly towards the impact zone
+                TempInfoArray[i].gravityPoint = TempInfoArray[i].collisionPoint;
+                if (!TempInfoArray[i].isColliding) {
+                    TempInfoArray[i].gravityPoint.x = (TempInfoArray[i].gravityPoint.x + TempInfoArray[i].centerPoint.x) / 2;
+                    TempInfoArray[i].gravityPoint.y = (TempInfoArray[i].gravityPoint.y + TempInfoArray[i].centerPoint.y) / 2;
+                } else {
+                   
+                }
+                //###############################################
                 //add base movement to all objects
                 TempInfoArray[i].xMagnitude += _this.xGravity * (_this.deltaTime / 100);
                 TempInfoArray[i].yMagnitude += _this.yGravity * (_this.deltaTime / 100);
@@ -256,7 +268,7 @@ function publes2d(Configuration) {
                 TempInfoArray[i].centerPoint.x += TempInfoArray[i].xMagnitude;
                 TempInfoArray[i].centerPoint.y += TempInfoArray[i].yMagnitude;
                 TempInfoArray[i].centerPoint = rotatePoint(TempInfoArray[i].gravityPoint, TempInfoArray[i].centerPoint, TempInfoArray[i].rMagnitude);
-
+                //console.log(TempInfoArray[i].gravityPoint);
                 for (e = 0; e <= _this.objectsArray[i].cords.length - 1; e++) {
                     //rotate object using this loop
                     TempInfoArray[i].cords[e].x += TempInfoArray[i].xMagnitude;
@@ -264,6 +276,7 @@ function publes2d(Configuration) {
                     TempInfoArray[i].cords[e] = rotatePoint(TempInfoArray[i].gravityPoint, TempInfoArray[i].cords[e], TempInfoArray[i].rMagnitude);
                 };
             };
+            
         };
         //Check collission now everything has been moved
         for (i = 0; i <= _this.objectsArray.length - 1; i++) {
@@ -293,10 +306,12 @@ function publes2d(Configuration) {
                 }else if(TempInfoArray[i].colMemorendum[TempInfoArray[a].id] >= 2  && TempInfoArray[i].colMemorendum[TempInfoArray[a].id] <= 20){
                 } else { 
                 };
+                TempInfoArray[i].isColliding = true;
             } else {
                 if (TempInfoArray[i].colMemorendum[TempInfoArray[a].id] != 0) {
                     TempInfoArray[i].colMemorendum[TempInfoArray[a].id] -= 1;
                 };
+                TempInfoArray[i].isColliding = false;
             };
         };
     };
@@ -308,15 +323,24 @@ function publes2d(Configuration) {
         var side = GetSide(objectA.centerPoint, { x: objectA.xMagnitude + objectA.centerPoint.x, y: objectA.yMagnitude + objectA.centerPoint.y }, middleCord);
         //if colindant object is rigid, calculate following
         if (objectB.isRigidBody) {
-            TempInfoArray[i].yMagnitude = ((objectA.yMagnitude * -1) +  (side * 0.01)) * objectA.material.bounciness;
-            TempInfoArray[i].xMagnitude = ((objectA.xMagnitude * -1) + (side * 0.01)) * objectA.material.bounciness;
-            TempInfoArray[i].rMagnitude = ((objectA.rMagnitude * -1) + (-side * 0.002)) * _this.defaultFriction;
+            TempInfoArray[i].yMagnitude = ((objectA.yMagnitude * -1) +  (side * 0.01)) * (objectA.material.bounciness * 0.5);
+            TempInfoArray[i].xMagnitude = ((objectA.xMagnitude * -1) + (side * 0.01)) * (objectA.material.bounciness * 0.5);
+            //TempInfoArray[i].rMagnitude = ((objectA.rMagnitude * -1) + (-side * 0.002)) * _this.defaultFriction;
             //console.log(side);
         } else {
             TempInfoArray[i].yMagnitude = ((objectA.yMagnitude + (side * 0.01)) * -objectA.material.bounciness);
             TempInfoArray[i].xMagnitude = ((objectA.xMagnitude + (side * 0.01)) * -objectA.material.bounciness);
-            TempInfoArray[i].rMagnitude = ((objectA.rMagnitude + (-side * 0.002)) * _this.defaultFriction);
+           // TempInfoArray[i].rMagnitude = ((objectA.rMagnitude + (-side * 0.002)) * _this.defaultFriction);
         };
+        //set gravity point to the hit point
+        var mySide = GetSide(TempInfoArray[i].centerPoint, { y: TempInfoArray[i].centerPoint.y + TempInfoArray[i].yMagnitude, x: TempInfoArray[i].centerPoint.x + TempInfoArray[i].xMagnitude}, colCord);
+        if (mySide < 0) {
+            TempInfoArray[i].rMagnitude = -0.08
+        } else {
+            TempInfoArray[i].rMagnitude = 0.08
+        }
+        TempInfoArray[i].collisionPoint = colCord;
+       // console.log(mySide);
     };
 
     //check if object is colliding with others
@@ -328,7 +352,7 @@ function publes2d(Configuration) {
                 currentCord2 = TempInfoArray[i].cords[0];
             };
             if (typeof TempInfoArray[a] != "undefined") {
-                if (isObjectSideColliding(TempInfoArray[a].cords, currentCord, currentCord2)) {      
+                if (isObjectSideColliding(TempInfoArray[a].cords, currentCord, currentCord2)) {     
                     TempInfoArray[i] = _this.objectsArray[i];  
                     CalculateCollision(TempInfoArray[i], TempInfoArray[a], currentCord, currentCord2);
                     TempInfoArray[i].colMemorendum[TempInfoArray[a].id] += 1;
@@ -347,7 +371,7 @@ function publes2d(Configuration) {
                 return true;
             };
         };
-
+        
         return false;
     };
 
@@ -366,11 +390,11 @@ function publes2d(Configuration) {
                 canvasContext.fill();
                 canvasContext.stroke();
                 //draw central point of object
-                canvasContext.fillStyle = "red";
+                canvasContext.fillStyle = "Blue";
                 canvasContext.fillRect(_this.objectsArray[i].centerPoint.x - 2, _this.objectsArray[i].centerPoint.y - 2, 4, 4);
                 //draw gravity point of object
                 canvasContext.fillStyle = "#39ff14";
-                canvasContext.fillRect(_this.objectsArray[i].gravityPoint.x - 2, _this.objectsArray[i].gravityPoint.y - 2, 4, 4);
+                canvasContext.fillRect(_this.objectsArray[i].gravityPoint.x - 3, _this.objectsArray[i].gravityPoint.y - 3, 4, 4);
             };
         };
     };
