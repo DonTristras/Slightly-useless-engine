@@ -1,4 +1,4 @@
-//Publes2D base class
+﻿//Publes2D base class
 
 // READ http://stackoverflow.com/questions/7615009/disable-interpolation-when-scaling-a-canvas
 
@@ -52,11 +52,11 @@ function publes2d(Configuration) {
     this.IsRunning = true;
 
     //Scenary configuration params
-    this.ShapeQuality = 15;
+    this.ShapeQuality = 10;
     this.isMouseDown = false;
     this.debugMode = true;
     //current
-    this.selectedMaterial = this.materials.metal;
+    this.selectedMaterial = this.materials.superGum;
     this.selectedJoinStyle = this.lineJoinStyle.round;
 
     // base items definition
